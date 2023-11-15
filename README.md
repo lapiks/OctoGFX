@@ -1,2 +1,4 @@
 # OctoEngine
-Ray-tracing voxel engine in c++
+A WebGPU based rendering library written in C++.
+
+WIP
