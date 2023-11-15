@@ -3,6 +3,14 @@
 #include <stdint.h>
 
 namespace ogfx {
+  constexpr uint16_t nullHandle = UINT16_MAX;
+
+  #define OGFX_HANDLE(name) \
+	struct name { uint16_t id = nullHandle; };
+
+  OGFX_HANDLE(RenderPassHandle)
+  OGFX_HANDLE(RenderPipelineHandle)
+
   struct PlatformData {
     void* nativeWindowHandle = nullptr;
   };
@@ -17,10 +25,17 @@ namespace ogfx {
     Resolution resolution;
   };
 
+  struct RenderPipelineDesc {
+
+  };
+
   struct Context {
     bool init(const InitInfo& info);
     void shutdown();
 
+    RenderPipelineHandle newRenderPipeline(const RenderPipelineDesc& desc);
+
+    void applyPipeline(RenderPipelineHandle handle);
     void commitFrame();
   };
 }

@@ -3,8 +3,6 @@
 #include <cassert>
 #include <Windows.h>
 
-#include "octogfx/octogfx.h"
-
 namespace ogfx {
   WGPUAdapter requestAdapter(WGPUInstance instance, WGPURequestAdapterOptions const* options) {
     // A simple structure holding the local information shared with the
@@ -229,6 +227,21 @@ namespace ogfx {
     wgpuInstanceRelease(m_instance);
   }
 
+  RenderPipelineHandle RendererContext::newRenderPipeline(const RenderPipelineDesc& desc) {
+    RenderPipelineHandle handle;
+    m_renderPipelineAlloc.allocate(handle);
+
+    m_renderPipelines[handle.id].create(m_device, desc);
+
+    return handle;
+  }
+
+  void RendererContext::applyPipeline(RenderPipelineHandle handle) {
+    const RenderPipeline& pipe = m_renderPipelines[handle.id];
+
+    wgpuRenderPassEncoderSetPipeline(m_renderPasses[m_currentPass.id].m_renderPass, pipe.m_renderPipeline);
+  }
+
   void RendererContext::commitFrame() {
     // Get texture view from the swap chain
     WGPUTextureView nextTexture = wgpuSwapChainGetCurrentTextureView(m_swapChain);
@@ -242,9 +255,6 @@ namespace ogfx {
     encoderDesc.nextInChain = nullptr;
     encoderDesc.label = "Command encoder";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &encoderDesc);
-
-    wgpuCommandEncoderInsertDebugMarker(encoder, "Do one thing");
-    wgpuCommandEncoderInsertDebugMarker(encoder, "Do another thing");
 
     // Render pass
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
@@ -283,6 +293,100 @@ namespace ogfx {
     wgpuTextureViewRelease(nextTexture);
 
     wgpuSwapChainPresent(m_swapChain);
+  }
+
+  bool RenderPipeline::create(WGPUDevice device, const RenderPipelineDesc&) {
+    const char* shaderSource = R"(
+@vertex
+fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4f {
+    var p = vec2f(0.0, 0.0);
+    if (in_vertex_index == 0u) {
+        p = vec2f(-0.5, -0.5);
+    } else if (in_vertex_index == 1u) {
+        p = vec2f(0.5, -0.5);
+    } else {
+        p = vec2f(0.0, 0.5);
+    }
+    return vec4f(p, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4f {
+    return vec4f(0.0, 0.4, 1.0, 1.0);
+}
+)";
+
+    WGPUShaderModuleDescriptor shaderDesc{};
+    // [...] Describe shader module
+    WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
+
+#ifdef WEBGPU_BACKEND_WGPU
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = nullptr;
+#endif
+
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
+    // Set the chained struct's header
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    // Connect the chain
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+
+    shaderCodeDesc.code = shaderSource;
+
+    WGPURenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
+    pipelineDesc.primitive.cullMode = WGPUCullMode_None;
+
+    WGPUFragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+
+    pipelineDesc.fragment = &fragmentState;
+    pipelineDesc.depthStencil = nullptr;
+
+    WGPUBlendState blendState{};
+    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blendState.color.operation = WGPUBlendOperation_Add;
+    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blendState.alpha.dstFactor = WGPUBlendFactor_One;
+    blendState.alpha.operation = WGPUBlendOperation_Add;
+
+    WGPUColorTargetState colorTarget{};
+    colorTarget.format = WGPUTextureFormat_BGRA8Unorm; // todo: parametrize (for wgpu)
+    colorTarget.blend = &blendState;
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+
+    // Samples per pixel
+    pipelineDesc.multisample.count = 1;
+    // Default value for the mask, meaning "all bits on"
+    pipelineDesc.multisample.mask = ~0u;
+    // Default value as well (irrelevant for count = 1 anyways)
+    pipelineDesc.multisample.alphaToCoverageEnabled = false;
+
+    pipelineDesc.layout = nullptr;
+
+    m_renderPipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+
+    return true;
+  }
+
+  void RenderPipeline::destroy() {
+
   }
 
 }

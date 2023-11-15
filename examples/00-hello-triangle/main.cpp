@@ -38,6 +38,8 @@ int main(int, char**) {
     return 1;
   }
 
+  ogfx::RenderPipelineHandle pipe = ctx.newRenderPipeline({});
+
   while (!glfwWindowShouldClose(window)) {
     // Check whether the user clicked on the close button (and any other
     // mouse/key event, which we don't use so far)

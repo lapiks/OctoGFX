@@ -12,6 +12,14 @@ namespace ogfx {
     m_ctx.shutdown();
   }
 
+  RenderPipelineHandle Context::newRenderPipeline(const RenderPipelineDesc& desc) {
+    return m_ctx.newRenderPipeline(desc);
+  }
+
+  void Context::applyPipeline(RenderPipelineHandle handle) {
+    m_ctx.applyPipeline(handle);
+  }
+
   void Context::commitFrame() {
     m_ctx.commitFrame();
   }
