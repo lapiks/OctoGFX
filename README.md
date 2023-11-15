@@ -1,4 +1,4 @@
-# OctoEngine
+# OctoGFX
 A WebGPU based rendering library written in C++.
 
 WIP
