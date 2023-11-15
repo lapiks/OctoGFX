@@ -100,14 +100,17 @@ int main(int, char**) {
   WGPUInstanceDescriptor desc = {};
   desc.nextInChain = nullptr;
 
+  // Instance
   WGPUInstance instance = wgpuCreateInstance(&desc);
   if (!instance) {
     std::cerr << "Could not initialize WebGPU!" << std::endl;
     return 1;
   }
 
+  // Surface
   WGPUSurface surface = glfwGetWGPUSurface(instance, window);
 
+  // Adapter
   std::cout << "Requesting adapter..." << std::endl;
   WGPURequestAdapterOptions adapterOpts = {};
   adapterOpts.nextInChain = nullptr;
@@ -120,8 +123,6 @@ int main(int, char**) {
   // Call the function a first time with a null return address, just to get
   // the entry count.
   size_t featureCount = wgpuAdapterEnumerateFeatures(adapter, nullptr);
-
-  // Allocate memory (could be a new, or a malloc() if this were a C program)
   features.resize(featureCount);
 
   // Call the function a second time, with a non-null return address
@@ -132,6 +133,7 @@ int main(int, char**) {
     std::cout << " - " << f << std::endl;
   }
 
+  // Device
   std::cout << "Requesting device..." << std::endl;
   WGPUDeviceDescriptor deviceDesc = {};
   deviceDesc.nextInChain = nullptr;
@@ -150,30 +152,10 @@ int main(int, char**) {
     };
   wgpuDeviceSetUncapturedErrorCallback(device, onDeviceError, nullptr /* pUserData */);
 
+  // Queue
   WGPUQueue queue = wgpuDeviceGetQueue(device);
 
-  WGPUCommandEncoderDescriptor encoderDesc = {};
-  encoderDesc.nextInChain = nullptr;
-  encoderDesc.label = "Command encoder";
-  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
-
-  wgpuCommandEncoderInsertDebugMarker(encoder, "Do one thing");
-  wgpuCommandEncoderInsertDebugMarker(encoder, "Do another thing");
-
-  WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
-  cmdBufferDescriptor.nextInChain = nullptr;
-  cmdBufferDescriptor.label = "Command buffer";
-  WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-
-  // Finally submit the command queue
-  std::cout << "Submitting command..." << std::endl;
-  wgpuQueueSubmit(queue, 1, &command);
-
-#ifdef WEBGPU_BACKEND_DAWN
-  wgpuCommandEncoderRelease(encoder);
-  wgpuCommandBufferRelease(command);
-#endif
-
+  // Swap chain
   WGPUSwapChainDescriptor swapChainDesc = {};
   swapChainDesc.nextInChain = nullptr;
   swapChainDesc.width = 640;
@@ -195,14 +177,23 @@ int main(int, char**) {
     // mouse/key event, which we don't use so far)
     glfwPollEvents();
 
+    // Get texture view from the swap chain
     WGPUTextureView nextTexture = wgpuSwapChainGetCurrentTextureView(swapChain);
-    std::cout << "nextTexture: " << nextTexture << std::endl;
-
     if (!nextTexture) {
       std::cerr << "Cannot acquire next swap chain texture" << std::endl;
       break;
     }
 
+    // Command encoder
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.nextInChain = nullptr;
+    encoderDesc.label = "Command encoder";
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+
+    wgpuCommandEncoderInsertDebugMarker(encoder, "Do one thing");
+    wgpuCommandEncoderInsertDebugMarker(encoder, "Do another thing");
+
+    // Render pass
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
     renderPassColorAttachment.view = nextTexture;
     renderPassColorAttachment.resolveTarget = nullptr;
@@ -218,8 +209,23 @@ int main(int, char**) {
     renderPassDesc.timestampWrites = nullptr; // for measurements
     renderPassDesc.nextInChain = nullptr;
 
+    // Encore render pass
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
     wgpuRenderPassEncoderEnd(renderPass);
+
+    // Create command buffer from encoder
+    WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
+    cmdBufferDescriptor.nextInChain = nullptr;
+    cmdBufferDescriptor.label = "Command buffer";
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
+
+    // Submit the command queue
+    wgpuQueueSubmit(queue, 1, &command);
+
+#ifdef WEBGPU_BACKEND_DAWN
+    wgpuCommandEncoderRelease(encoder);
+    wgpuCommandBufferRelease(command);
+#endif
 
     wgpuTextureViewRelease(nextTexture);
 
