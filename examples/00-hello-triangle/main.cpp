@@ -33,7 +33,7 @@ int main(int, char**) {
   };
 
   if (!ctx.init(info)) {
-    std::cerr << "Octo RendererContext initialization failed" << std::endl;
+    std::cerr << "OctoGFX RendererContext initialization failed" << std::endl;
     glfwTerminate();
     return 1;
   }
@@ -45,6 +45,10 @@ int main(int, char**) {
     // mouse/key event, which we don't use so far)
     glfwPollEvents();
 
+    ctx.beginDefaultPass();
+    ctx.applyPipeline(pipe);
+    ctx.draw();
+    ctx.endPass();
     ctx.commitFrame();
   }
 

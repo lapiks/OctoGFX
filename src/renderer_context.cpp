@@ -153,6 +153,13 @@ namespace ogfx {
     return swapChain;
   }
 
+  WGPUCommandEncoder createCmdEncoder(WGPUDevice device) {
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.nextInChain = nullptr;
+    encoderDesc.label = "Command encoder";
+    return wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+  }
+
   std::vector<WGPUFeatureName> retrieveFeatures(WGPUAdapter adapter) {
     std::vector<WGPUFeatureName> features;
 
@@ -216,6 +223,8 @@ namespace ogfx {
     }
     std::cout << "Swapchain: " << m_swapChain << std::endl;
 
+    m_cmdEncoder = createCmdEncoder(m_device);
+
     return true;
   }
 
@@ -236,34 +245,23 @@ namespace ogfx {
     return handle;
   }
 
-  void RendererContext::applyPipeline(RenderPipelineHandle handle) {
-    const RenderPipeline& pipe = m_renderPipelines[handle.id];
-
-    wgpuRenderPassEncoderSetPipeline(m_renderPasses[m_currentPass.id].m_renderPass, pipe.m_renderPipeline);
-  }
-
-  void RendererContext::commitFrame() {
+  void RendererContext::beginDefaultPass() {
     // Get texture view from the swap chain
-    WGPUTextureView nextTexture = wgpuSwapChainGetCurrentTextureView(m_swapChain);
-    if (!nextTexture) {
+    m_nextTexture = wgpuSwapChainGetCurrentTextureView(m_swapChain);
+    if (!m_nextTexture) {
       std::cerr << "Cannot acquire next swap chain texture" << std::endl;
       return;
     }
 
-    // Command encoder
-    WGPUCommandEncoderDescriptor encoderDesc = {};
-    encoderDesc.nextInChain = nullptr;
-    encoderDesc.label = "Command encoder";
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &encoderDesc);
-
-    // Render pass
+    // Define attachments
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = nextTexture;
+    renderPassColorAttachment.view = m_nextTexture;
     renderPassColorAttachment.resolveTarget = nullptr;
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
     renderPassColorAttachment.clearValue = WGPUColor{ 0.9, 0.1, 0.2, 1.0 };
 
+    // Define Render Pass
     WGPURenderPassDescriptor renderPassDesc = {};
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
@@ -272,27 +270,44 @@ namespace ogfx {
     renderPassDesc.timestampWrites = nullptr; // for measurements
     renderPassDesc.nextInChain = nullptr;
 
-    // Encore render pass
-    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-    wgpuRenderPassEncoderEnd(renderPass);
+    m_currentRenderPass = wgpuCommandEncoderBeginRenderPass(m_cmdEncoder, &renderPassDesc);
+  }
 
+  void RendererContext::endPass() {
+    wgpuRenderPassEncoderEnd(m_currentRenderPass);
+    wgpuRenderPassEncoderRelease(m_currentRenderPass); // useful? 
+  }
+
+  void RendererContext::applyPipeline(RenderPipelineHandle handle) {
+    const RenderPipeline& pipe = m_renderPipelines[handle.id];
+
+    wgpuRenderPassEncoderSetPipeline(m_currentRenderPass, pipe.m_renderPipeline);
+  }
+
+  void RendererContext::draw() {
+    wgpuRenderPassEncoderDraw(m_currentRenderPass, 3, 1, 0, 0);
+  }
+
+  void RendererContext::commitFrame() {
     // Create command buffer from encoder
     WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
     cmdBufferDescriptor.nextInChain = nullptr;
     cmdBufferDescriptor.label = "Command buffer";
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(m_cmdEncoder, &cmdBufferDescriptor);
 
     // Submit the command queue
     wgpuQueueSubmit(m_queue, 1, &command);
 
 #ifdef WEBGPU_BACKEND_DAWN
-    wgpuCommandEncoderRelease(encoder);
+    wgpuCommandEncoderRelease(m_cmdEncoder);
     wgpuCommandBufferRelease(command);
 #endif
 
-    wgpuTextureViewRelease(nextTexture);
+    wgpuTextureViewRelease(m_nextTexture);
 
     wgpuSwapChainPresent(m_swapChain);
+
+    m_cmdEncoder = createCmdEncoder(m_device);
   }
 
   bool RenderPipeline::create(WGPUDevice device, const RenderPipelineDesc&) {
@@ -317,9 +332,6 @@ fn fs_main() -> @location(0) vec4f {
 )";
 
     WGPUShaderModuleDescriptor shaderDesc{};
-    // [...] Describe shader module
-    WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
-
 #ifdef WEBGPU_BACKEND_WGPU
     shaderDesc.hintCount = 0;
     shaderDesc.hints = nullptr;
@@ -329,12 +341,15 @@ fn fs_main() -> @location(0) vec4f {
     // Set the chained struct's header
     shaderCodeDesc.chain.next = nullptr;
     shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    shaderCodeDesc.code = shaderSource;
+
     // Connect the chain
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
 
-    shaderCodeDesc.code = shaderSource;
+    WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
 
     WGPURenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.nextInChain = nullptr;
     pipelineDesc.vertex.bufferCount = 0;
     pipelineDesc.vertex.buffers = nullptr;
     pipelineDesc.vertex.module = shaderModule;
@@ -351,8 +366,8 @@ fn fs_main() -> @location(0) vec4f {
     fragmentState.entryPoint = "fs_main";
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
-
     pipelineDesc.fragment = &fragmentState;
+
     pipelineDesc.depthStencil = nullptr;
 
     WGPUBlendState blendState{};

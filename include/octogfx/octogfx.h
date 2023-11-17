@@ -35,7 +35,10 @@ namespace ogfx {
 
     RenderPipelineHandle newRenderPipeline(const RenderPipelineDesc& desc);
 
+    void beginDefaultPass();
+    void endPass();
     void applyPipeline(RenderPipelineHandle handle);
+    void draw();
     void commitFrame();
   };
 }

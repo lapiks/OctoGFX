@@ -12,12 +12,12 @@ namespace ogfx {
   struct InitInfo;
   struct RenderPipelineDesc;
 
-  struct RenderPass {
-    bool create(WGPUDevice device, const RenderPipelineDesc& desc);
-    void destroy();
+  //struct RenderPass {
+  //  bool begin(WGPUDevice device, const RenderPipelineDesc& desc);
+  //  void end();
 
-    WGPURenderPassEncoder m_renderPass;
-  };
+  //  WGPURenderPassEncoder m_renderPass;
+  //};
 
   struct RenderPipeline {
     bool create(WGPUDevice device, const RenderPipelineDesc& desc);
@@ -42,7 +42,10 @@ namespace ogfx {
 
     RenderPipelineHandle newRenderPipeline(const RenderPipelineDesc& desc);
 
+    void beginDefaultPass();
+    void endPass();
     void applyPipeline(RenderPipelineHandle handle);
+    void draw();
     void commitFrame();
 
   private:
@@ -53,12 +56,14 @@ namespace ogfx {
     WGPUDevice m_device;
     WGPUQueue m_queue;
     WGPUSwapChain m_swapChain;
+    WGPUCommandEncoder m_cmdEncoder;
+    WGPUTextureView m_nextTexture;
 
-    RenderPassHandle m_currentPass;
+    WGPURenderPassEncoder m_currentRenderPass;
 
     RenderPipeline m_renderPipelines[MAX_PIPELINES];
     HandleAllocator<RenderPipelineHandle> m_renderPipelineAlloc;
-    RenderPass m_renderPasses[MAX_PASSES];
-    HandleAllocator<RenderPassHandle> m_renderPassAlloc;
+    //RenderPass m_renderPasses[MAX_PASSES];
+    //HandleAllocator<RenderPassHandle> m_renderPassAlloc;
   };
 }

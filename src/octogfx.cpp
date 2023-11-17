@@ -16,8 +16,20 @@ namespace ogfx {
     return m_ctx.newRenderPipeline(desc);
   }
 
+  void Context::beginDefaultPass() {
+    m_ctx.beginDefaultPass();
+  }
+
+  void Context::endPass() {
+    m_ctx.endPass();
+  }
+
   void Context::applyPipeline(RenderPipelineHandle handle) {
     m_ctx.applyPipeline(handle);
+  }
+
+  void Context::draw() {
+    m_ctx.draw();
   }
 
   void Context::commitFrame() {
