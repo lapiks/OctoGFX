@@ -121,14 +121,58 @@ namespace ogfx {
   }
 
   WGPUDevice createDevice(WGPUAdapter adapter) {
+    WGPUSupportedLimits supportedLimits{};
+    supportedLimits.nextInChain = nullptr;
+
+    wgpuAdapterGetLimits(adapter, &supportedLimits);
+    std::cout << "adapter.maxVertexAttributes: " << supportedLimits.limits.maxVertexAttributes << std::endl;
+
+    WGPURequiredLimits requiredLimits{};
+    requiredLimits.limits.maxTextureDimension1D = 0;
+    requiredLimits.limits.maxTextureDimension2D = 0;
+    requiredLimits.limits.maxTextureDimension3D = 0;
+    requiredLimits.limits.maxTextureArrayLayers = 0;
+    requiredLimits.limits.maxBindGroups = 0;
+    requiredLimits.limits.maxBindGroupsPlusVertexBuffers = 0;
+    requiredLimits.limits.maxBindingsPerBindGroup = 0;
+    requiredLimits.limits.maxDynamicStorageBuffersPerPipelineLayout = 0;
+    requiredLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 0;
+    requiredLimits.limits.maxSampledTexturesPerShaderStage = 0;
+    requiredLimits.limits.maxSamplersPerShaderStage = 0;
+    requiredLimits.limits.maxStorageBuffersPerShaderStage = 0;
+    requiredLimits.limits.maxStorageTexturesPerShaderStage = 0;
+    requiredLimits.limits.maxUniformBuffersPerShaderStage = 0;
+    requiredLimits.limits.maxUniformBufferBindingSize = 0;
+    requiredLimits.limits.maxStorageBufferBindingSize = 0;
+    requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
+    requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
+    requiredLimits.limits.maxVertexBuffers = 1;
+    requiredLimits.limits.maxBufferSize = 6 * 2 * sizeof(float);
+    requiredLimits.limits.maxVertexAttributes = 1;
+    requiredLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float);
+    requiredLimits.limits.maxInterStageShaderComponents = 0;
+    requiredLimits.limits.maxInterStageShaderVariables = 0;
+    requiredLimits.limits.maxColorAttachments = 0;
+    requiredLimits.limits.maxColorAttachmentBytesPerSample = 0;
+    requiredLimits.limits.maxColorAttachmentBytesPerSample = 0;
+    requiredLimits.limits.maxComputeWorkgroupStorageSize = 0;
+    requiredLimits.limits.maxComputeInvocationsPerWorkgroup = 0;
+    requiredLimits.limits.maxComputeWorkgroupSizeX = 0;
+    requiredLimits.limits.maxComputeWorkgroupSizeY = 0;
+    requiredLimits.limits.maxComputeWorkgroupSizeZ = 0;
+    requiredLimits.limits.maxComputeWorkgroupsPerDimension = 0;
+
     WGPUDeviceDescriptor deviceDesc = {};
     deviceDesc.nextInChain = nullptr;
     deviceDesc.label = "Device"; // anything works here, that's your call
     deviceDesc.requiredFeaturesCount = 0; // we do not require any specific feature
-    deviceDesc.requiredLimits = nullptr; // we do not require any specific limit
+    deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.defaultQueue.nextInChain = nullptr;
     deviceDesc.defaultQueue.label = "Default queue";
     WGPUDevice device = requestDevice(adapter, &deviceDesc);
+
+    //wgpuDeviceGetLimits(device, &supportedLimits);
+    //std::cout << "device.maxVertexAttributes: " << supportedLimits.limits.maxVertexAttributes << std::endl;
 
     return device;
   }
