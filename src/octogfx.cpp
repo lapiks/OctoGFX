@@ -20,6 +20,10 @@ namespace ogfx {
     return m_ctx.newShader(mem);
   }
 
+  BufferHandle Context::newBuffer(Memory mem) {
+    return m_ctx.newBuffer(mem);
+  }
+
   void Context::beginDefaultPass() {
     m_ctx.beginDefaultPass();
   }

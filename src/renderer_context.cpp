@@ -256,6 +256,17 @@ namespace ogfx {
     return handle;
   }
 
+  BufferHandle RendererContext::newBuffer(Memory mem) {
+    BufferHandle handle;
+    m_bufferAlloc.allocate(handle);
+
+    Buffer& buffer = m_buffers[handle.id];
+    buffer.create(m_device);
+    buffer.write(m_queue, mem);
+
+    return handle;
+  }
+
   void RendererContext::beginDefaultPass() {
     // Get texture view from the swap chain
     m_nextTexture = wgpuSwapChainGetCurrentTextureView(m_swapChain);
@@ -400,7 +411,26 @@ namespace ogfx {
   }
 
   void Shader::destroy() {
-  
   }
 
+  bool Buffer::create(WGPUDevice device) {
+    WGPUBufferDescriptor bufferDesc = {};
+    bufferDesc.nextInChain = nullptr;
+    bufferDesc.label = "Data buffer";
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+    bufferDesc.size = 16;
+    bufferDesc.mappedAtCreation = false;
+    m_buffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+
+    return true;
+  }
+
+  void Buffer::write(WGPUQueue queue, Memory mem) {
+    wgpuQueueWriteBuffer(queue, m_buffer, 0, mem.data, mem.size);
+  }
+
+  void Buffer::destroy() {
+    wgpuBufferDestroy(m_buffer);
+    wgpuBufferRelease(m_buffer);
+  }
 }

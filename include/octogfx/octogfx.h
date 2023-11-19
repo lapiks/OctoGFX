@@ -11,6 +11,7 @@ namespace ogfx {
   OGFX_HANDLE(RenderPassHandle)
   OGFX_HANDLE(RenderPipelineHandle)
   OGFX_HANDLE(ShaderHandle)
+  OGFX_HANDLE(BufferHandle)
 
   struct PlatformData {
     void* nativeWindowHandle = nullptr;
@@ -41,6 +42,7 @@ namespace ogfx {
 
     RenderPipelineHandle newRenderPipeline(const RenderPipelineDesc& desc);
     ShaderHandle newShader(Memory mem);
+    BufferHandle newBuffer(Memory mem);
 
     void beginDefaultPass();
     void endPass();
