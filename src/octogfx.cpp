@@ -16,6 +16,10 @@ namespace ogfx {
     return m_ctx.newRenderPipeline(desc);
   }
 
+  ShaderHandle Context::newShader(Memory mem) {
+    return m_ctx.newShader(mem);
+  }
+
   void Context::beginDefaultPass() {
     m_ctx.beginDefaultPass();
   }

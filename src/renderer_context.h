@@ -7,6 +7,7 @@
 
 constexpr uint32_t MAX_PASSES = 512;
 constexpr uint32_t MAX_PIPELINES = 512;
+constexpr uint32_t MAX_SHADERS = 512;
 
 namespace ogfx {
   struct InitInfo;
@@ -20,10 +21,17 @@ namespace ogfx {
   //};
 
   struct RenderPipeline {
-    bool create(WGPUDevice device, const RenderPipelineDesc& desc);
+    bool create(WGPUDevice device, WGPUShaderModule shaderModule);
     void destroy();
 
     WGPURenderPipeline m_renderPipeline;
+  };
+
+  struct Shader {
+    bool create(WGPUDevice device, Memory mem);
+    void destroy();
+
+    WGPUShaderModule m_shaderModule;
   };
 
   template<typename T>
@@ -41,6 +49,7 @@ namespace ogfx {
     void shutdown();
 
     RenderPipelineHandle newRenderPipeline(const RenderPipelineDesc& desc);
+    ShaderHandle newShader(Memory mem);
 
     void beginDefaultPass();
     void endPass();
@@ -63,6 +72,8 @@ namespace ogfx {
 
     RenderPipeline m_renderPipelines[MAX_PIPELINES];
     HandleAllocator<RenderPipelineHandle> m_renderPipelineAlloc;
+    Shader m_shaders[MAX_SHADERS];
+    HandleAllocator<ShaderHandle> m_shaderAlloc;
     //RenderPass m_renderPasses[MAX_PASSES];
     //HandleAllocator<RenderPassHandle> m_renderPassAlloc;
   };

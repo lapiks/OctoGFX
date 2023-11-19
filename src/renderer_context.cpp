@@ -240,7 +240,18 @@ namespace ogfx {
     RenderPipelineHandle handle;
     m_renderPipelineAlloc.allocate(handle);
 
-    m_renderPipelines[handle.id].create(m_device, desc);
+    const Shader& shader = m_shaders[desc.shader.id];
+
+    m_renderPipelines[handle.id].create(m_device, shader.m_shaderModule);
+
+    return handle;
+  }
+
+  ShaderHandle RendererContext::newShader(Memory mem) {
+    ShaderHandle handle;
+    m_shaderAlloc.allocate(handle);
+
+    m_shaders[handle.id].create(m_device, mem);
 
     return handle;
   }
@@ -310,44 +321,7 @@ namespace ogfx {
     m_cmdEncoder = createCmdEncoder(m_device);
   }
 
-  bool RenderPipeline::create(WGPUDevice device, const RenderPipelineDesc&) {
-    const char* shaderSource = R"(
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4f {
-    var p = vec2f(0.0, 0.0);
-    if (in_vertex_index == 0u) {
-        p = vec2f(-0.5, -0.5);
-    } else if (in_vertex_index == 1u) {
-        p = vec2f(0.5, -0.5);
-    } else {
-        p = vec2f(0.0, 0.5);
-    }
-    return vec4f(p, 0.0, 1.0);
-}
-
-@fragment
-fn fs_main() -> @location(0) vec4f {
-    return vec4f(0.0, 0.4, 1.0, 1.0);
-}
-)";
-
-    WGPUShaderModuleDescriptor shaderDesc{};
-#ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = nullptr;
-#endif
-
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
-    // Set the chained struct's header
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    shaderCodeDesc.code = shaderSource;
-
-    // Connect the chain
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-
-    WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
-
+  bool RenderPipeline::create(WGPUDevice device, WGPUShaderModule shaderModule) {
     WGPURenderPipelineDescriptor pipelineDesc{};
     pipelineDesc.nextInChain = nullptr;
     pipelineDesc.vertex.bufferCount = 0;
@@ -402,6 +376,31 @@ fn fs_main() -> @location(0) vec4f {
 
   void RenderPipeline::destroy() {
 
+  }
+
+  bool Shader::create(WGPUDevice device, Memory mem) {
+    WGPUShaderModuleDescriptor shaderDesc{};
+#ifdef WEBGPU_BACKEND_WGPU
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = nullptr;
+#endif
+
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
+    // Set the chained struct's header
+    shaderCodeDesc.chain.next = nullptr;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    shaderCodeDesc.code = reinterpret_cast<const char*>(mem.data);
+
+    // Connect the chain
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
+
+    m_shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
+
+    return true;
+  }
+
+  void Shader::destroy() {
+  
   }
 
 }

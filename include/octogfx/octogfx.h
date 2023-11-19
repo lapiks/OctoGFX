@@ -10,6 +10,7 @@ namespace ogfx {
 
   OGFX_HANDLE(RenderPassHandle)
   OGFX_HANDLE(RenderPipelineHandle)
+  OGFX_HANDLE(ShaderHandle)
 
   struct PlatformData {
     void* nativeWindowHandle = nullptr;
@@ -26,7 +27,12 @@ namespace ogfx {
   };
 
   struct RenderPipelineDesc {
+    ShaderHandle shader;
+  };
 
+  struct Memory {
+    const uint8_t* data = nullptr;
+    uint64_t size = 0;
   };
 
   struct Context {
@@ -34,6 +40,7 @@ namespace ogfx {
     void shutdown();
 
     RenderPipelineHandle newRenderPipeline(const RenderPipelineDesc& desc);
+    ShaderHandle newShader(Memory mem);
 
     void beginDefaultPass();
     void endPass();
